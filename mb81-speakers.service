@@ -1,0 +1,14 @@
+[Unit]
+Description=MacBook8,1 internal-speaker auto-enable (CS4208 4-channel digital path)
+After=sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/mb81-speaker-assert.sh
+Restart=always
+RestartSec=3
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

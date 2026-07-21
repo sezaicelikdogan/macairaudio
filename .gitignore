@@ -1,0 +1,17 @@
+# Apple firmware dump — copyrighted, machine-specific (contains serial number). Never commit.
+bios.bin
+*.rom
+*.fd
+
+# DKMS build tree (downloaded kernel source ~150MB, regenerated on build)
+mbdrv/build/
+mbdrv/*.tar.xz
+
+# generated audio / logs / temp
+*.wav
+*.log
+*.orig
+
+# scratch / experiment dirs
+pw-configs-disabled/
+approachC/

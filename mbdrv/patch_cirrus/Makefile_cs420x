@@ -1,0 +1,5 @@
+subdir-ccflags-y += -I$(src)/../../common
+
+snd-hda-codec-cs420x-y :=	cs420x.o
+
+obj-m += snd-hda-codec-cs420x.o

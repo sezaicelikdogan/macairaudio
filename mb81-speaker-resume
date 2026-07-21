@@ -1,0 +1,8 @@
+#!/bin/bash
+# system-sleep hook: after resume, the codec is re-initialised by the driver, which
+# wipes the speaker path. Restart the assert daemon so it re-asserts immediately.
+case "$1" in
+  post)
+    systemctl restart mb81-speakers.service 2>/dev/null || true
+    ;;
+esac
