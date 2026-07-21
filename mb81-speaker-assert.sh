@@ -1,13 +1,15 @@
 #!/bin/bash
 # MacBook8,1 internal-speaker auto-enable daemon (runs as root via systemd).
-# Finds the CS4208 card by its STABLE id (PCH) — ALSA card NUMBERS are not stable
-# across boots (they can swap with HDMI). Whenever audio plays and headphones are
-# unplugged, asserts the 4-channel/16-bit digital speaker path. Idempotent.
+# THE KEY on kernel 7.0: the HDA controller assigns the playback DMA a stream TAG
+# dynamically, but the codec's digital speaker converter 0x0a must be bound to THAT
+# exact tag or it receives silence. We read the real running tag+format from the
+# controller MMIO (mb81-dmatag.py) and bind 0x0a to it. Card is resolved by stable
+# id (PCH) since ALSA card numbers swap with HDMI across boots. Idempotent.
+DMATAG=/usr/local/sbin/mb81-dmatag.py
 v()  { hda-verb "$HW" "$1" "$2" "$3" >/dev/null 2>&1; }
 rd() { hda-verb "$HW" "$1" "$2" 0 2>/dev/null | grep -oE '0x[0-9a-f]+$' | tail -1; }
 coef() { v 0x24 0x500 0x$1; v 0x24 0x400 0x$2; }
 
-# resolve the CS4208 card number from its stable id (PCH) -> sets CARD, HW, STATUS
 resolve_card() {
   local n
   for f in /proc/asound/card*/id; do
@@ -22,41 +24,40 @@ resolve_card() {
 
 echo 0 > /sys/module/snd_hda_intel/parameters/power_save 2>/dev/null
 
-assert_speakers() {   # $1 = stream tag, $2 = live format from converter 0x02
-  local tag=$1 fmt02=$2
-  local spk_fmt=$(( (fmt02 & 0x7F00) | 0x0013 ))   # keep rate bits, force 16-bit + 4ch
-  v 0x0a 0x705 0x00
-  v 0x0a 0x200 $(printf '0x%x' $spk_fmt)
-  v 0x0a 0x72d 0x03
-  v 0x0a 0x706 $(( tag<<4 ))
-  v 0x24 0x703 0x01
+assert_speakers() {   # $1 = real DMA stream tag, $2 = real DMA format (hex)
+  local tag=$1 fmt=$2
+  v 0x0a 0x705 0x00                # converter D0
+  v 0x0a 0x200 "$fmt"              # MATCH the live DMA format exactly
+  v 0x0a 0x72d 0x03                # 4 channels
+  v 0x0a 0x706 $(( tag<<4 ))       # bind the REAL controller tag
+  v 0x24 0x703 0x01                # vendor proc on
   coef 00 00c4; coef 04 0c04; coef 05 1000; coef 03 0baa
   coef 02 003a; coef 36 0034; coef 19 8383; coef 1c 0010
-  v 0x0a 0x70d 0x01; v 0x0a 0x70e 0x01; v 0x0a 0x70d 0x11
-  v 0x1d 0x701 0x00; v 0x1d 0x707 0x40; v 0x1d 0x705 0x00
-  v 0x01 0x716 0x09; v 0x01 0x717 0x01; v 0x01 0x715 0x01
+  v 0x0a 0x70d 0x01; v 0x0a 0x70e 0x01; v 0x0a 0x70d 0x11   # DigEn
+  v 0x1d 0x701 0x00; v 0x1d 0x707 0x40; v 0x1d 0x705 0x00   # speaker pin OUT
+  v 0x01 0x716 0x09; v 0x01 0x717 0x01; v 0x01 0x715 0x01   # GPIO0 amp ON
 }
 amp_off() { v 0x01 0x715 0x00; }
 
-last_tag=""
+last=""
 while true; do
-  if ! resolve_card; then sleep 2; continue; fi     # CS4208 not present yet
+  if ! resolve_card; then sleep 2; continue; fi
   if grep -q "^state: RUNNING" "$STATUS" 2>/dev/null; then
     hp=$(rd 0x10 0xf09)
-    if [ "$hp" = "0x0" ]; then
-      tagreg=$(rd 0x02 0xf06)
-      if [ -n "$tagreg" ] && [ "$tagreg" != "0x0" ]; then
-        tag=$(( tagreg >> 4 )); fmt02=$(rd 0x02 0xa00)
-        digi=$(rd 0x0a 0xf0d); cur=$(rd 0x0a 0xf06)
-        if [ "$digi" != "0x111" ] || [ "$cur" != "$tagreg" ] || [ "$tagreg" != "$last_tag" ]; then
-          assert_speakers "$tag" "$(( fmt02 ))"; last_tag="$tagreg"
+    if [ "$hp" = "0x0" ]; then                       # headphones unplugged -> speakers
+      read -r tag fmt < <(python3 "$DMATAG" 2>/dev/null)
+      if [ -n "$tag" ] && [ -n "$fmt" ]; then
+        want=$(( tag<<4 )); cur=$(( $(rd 0x0a 0xf06) ))
+        digi=$(rd 0x0a 0xf0d)
+        if [ "$cur" != "$want" ] || [ "$digi" != "0x111" ] || [ "$tag:$fmt" != "$last" ]; then
+          assert_speakers "$tag" "$fmt"; last="$tag:$fmt"
         fi
       fi
     else
-      amp_off; last_tag=""
+      amp_off; last=""
     fi
   else
-    last_tag=""
+    last=""
   fi
   sleep 0.7
 done
