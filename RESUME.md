@@ -1,28 +1,20 @@
 # MacBook8,1 internal speakers on Linux — RESUME / STATUS
 
-## Status: kernel 7.0 REGRESSION under investigation (worked on 6.17)
+## Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
 
-### >>> CURRENT BLOCKER (2026-07-21, kernel 7.0.0-28) <<<
-Speakers WORKED earlier this session on kernel 6.17. A reboot upgraded to kernel
-**7.0.0-28** and broke them. Two things changed:
-1. ALSA card RENUMBERED: CS4208 went card 1 -> card 0. FIXED: everything now uses
-   the stable id `hw:CARD=PCH` and the daemon resolves the card by id "PCH".
-   (This also fixed a PipeWire boot CRASH — the old hw:1,0 pointed at HDMI.)
-2. ROUTING CHANGED: on 7.0 the driver routes the analog PCM (hw:PCH,0) ENTIRELY to
-   converter 0x0a (conv=0x10 tag 1, fmt 0x4013=44.1k), analog DACs 0x02-0x05 idle/D3.
-   On 6.17 it routed to 0x02 (the daemon read tag from 0x02 and mirror-bound 0x0a).
-   Even matching format (44.1k) + full assert (DigEn, CIR, GPIO0) = STILL NO SOUND,
-   despite the register state looking identical to when it worked.
-DISABLED play_a1534() + cs_4208_playback_pcm_hook in cs420x.c (rebuilt via DKMS) to
-stop the driver fighting the daemon — routing still goes to 0x0a, still silent.
-A diagnostic workflow (run id wf_3f9f721d-9bb) was launched to root-cause (codec
-state diff vs EFI capture, controller DMA tag via MMIO, driver amp-init analysis) but
-STOPPED before completing — RE-RUN it to continue: leading hypotheses are (a) a
-one-time amp-init lost by disabling play_a1534, (b) controller DMA tag != 0x0a binding.
+### THE ROOT CAUSE (found 2026-07-21, kernel 7.0.0-28): dynamic HDA stream-tag mismatch
+The HDA controller assigns each playback DMA a stream TAG **dynamically** (varies per
+open — seen 1, then 5). The codec's digital speaker converter 0x0a must be bound to
+THAT exact tag or it receives silence. The driver bound 0x0a to a FIXED tag, so it
+only worked when they happened to line up. FIX: `mb81-dmatag.py` reads the running
+output stream's tag+format from the controller MMIO (PCI resource0, output stream
+descriptors at BAR+0x80+i*0x20, TAG = (SDCTL>>20)&0xf), and the daemon binds 0x0a to
+that tag + matches the format. Verified audible AUTOMATICALLY through PipeWire.
+(Also fixed earlier this session: card renumber 1->0 via stable `hw:CARD=PCH`; a
+PipeWire boot crash from hw:1,0 hitting HDMI; disabled the driver's fixed-tag
+play_a1534/pcm_hook.)
 
-### NOW ON GITHUB: github.com/sezaicelikdogan/macairaudio (push token cached 2h; ROTATE it)
-
-### If speakers needed urgently: boot kernel 6.17.0-20 (GRUB Advanced options) — worked there.
+### Repo: github.com/sezaicelikdogan/macairaudio  (rotate the shared token)
 
 ---
 ## (earlier) Status: FULLY INSTALLED & PERMANENT (pending final reboot test)
