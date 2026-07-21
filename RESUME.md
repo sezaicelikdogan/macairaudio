@@ -21,6 +21,7 @@ mouse only transmitting when IT is moved (trackpad irrelevant). v4 arms at +4s, 
 the gsd-rfkill restart only AFTER gnome-shell owns its bus name (fixes the shell proxy
 init race), tighter re-arm cadence, logs disconnects. Expectation: move the MOUSE →
 connect + icon in ~1-15s (some adverts drop as corrupt; unpatched ROM firmware).
+CONFIRMED by the user across 3 reboot tests (2026-07-21): works as designed. BT DONE ✅
 
 ---
 ## (earlier) Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
