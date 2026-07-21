@@ -22,6 +22,13 @@ the gsd-rfkill restart only AFTER gnome-shell owns its bus name (fixes the shell
 init race), tighter re-arm cadence, logs disconnects. Expectation: move the MOUSE →
 connect + icon in ~1-15s (some adverts drop as corrupt; unpatched ROM firmware).
 CONFIRMED by the user across 3 reboot tests (2026-07-21): works as designed. BT DONE ✅
+Postscript (2026-07-22 night): raising the LE supervision timeout (42→500) to resist
+thermal-stress drops FAILED — the BCM4350C0 ROM firmware silently refuses to complete
+any LE connection with it (0 errors logged; proven by forensics agent, confirmed by
+instant reconnect after revert). Reverted everywhere; daemon v4.1 now logs distinct
+connect-failure reasons. Also learned: after ~15 min of failed reconnects the Pebble
+M350s stops advertising — its power switch must be toggled. Final state: default
+timeout, self-healing daemon, all working. Details in ~/.claude memory macbook-bluetooth-fix.
 
 ---
 ## (earlier) Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
