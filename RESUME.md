@@ -15,7 +15,12 @@ oneshot armers were killed by systemd cgroup cleanup; bluez native LE auto-recon
 is flaky here (unpatched BCM4350C0 firmware emits malformed adv reports the kernel
 drops), while a directly-armed `bluetoothctl connect` completes in hardware instantly.
 v3 keeps a connect armed forever + re-syncs the QS toggle (gsd-rfkill target restart).
-Verified live; reboot test pending.
+v4 (final): 3-boot timeline analysis proved v3 was armed 6-7s after login and the mouse
+connected within ~1s of its radio being heard — the perceived 50-60s delay was the BLE
+mouse only transmitting when IT is moved (trackpad irrelevant). v4 arms at +4s, does
+the gsd-rfkill restart only AFTER gnome-shell owns its bus name (fixes the shell proxy
+init race), tighter re-arm cadence, logs disconnects. Expectation: move the MOUSE →
+connect + icon in ~1-15s (some adverts drop as corrupt; unpatched ROM firmware).
 
 ---
 ## (earlier) Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
