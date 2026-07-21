@@ -1,6 +1,20 @@
 # MacBook8,1 internal speakers on Linux — RESUME / STATUS
 
-## Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
+## Status: SPEAKERS DONE ✅ — working automatically on kernel 7.0, survives reboot + power-off.
+
+Verified: YouTube + music + tones through the internal speakers, working volume slider,
+persists across reboot and full power-off. Root cause was the dynamic HDA stream-tag
+mismatch (below); fixed by mb81-dmatag.py + the daemon binding 0x0a to the live tag.
+
+### Bluetooth (separate from this repo; see ~/.claude memory macbook-bluetooth-fix):
+Also fixed this session — the BCM4350C0 late-init broke the GNOME tray toggle AND
+mouse auto-connect. Fix: fast serdev-rebind (`fix-macbook-bluetooth.service`, ~18s vs
+~51s) + a post-login user service (`~/.local/bin/mb81-bt-postboot.sh`,
+`mb81-bt-postboot.service`) that power-cycles BlueZ (shows the tray tile) and
+host-connects paired devices (the mouse). PENDING a reboot test to confirm both are automatic.
+
+---
+## (earlier) Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
 
 ### THE ROOT CAUSE (found 2026-07-21, kernel 7.0.0-28): dynamic HDA stream-tag mismatch
 The HDA controller assigns each playback DMA a stream TAG **dynamically** (varies per
