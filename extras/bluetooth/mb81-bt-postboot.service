@@ -1,0 +1,15 @@
+[Unit]
+Description=MacBook8,1 Bluetooth session daemon (QS toggle re-sync + persistent device auto-connect)
+After=graphical-session.target
+
+[Service]
+# Type=simple + a forever-loop main process: v2 was Type=oneshot and systemd's
+# default KillMode=control-group killed the detached armed-connect children the
+# moment the script exited — the mouse then had nothing waiting for it.
+Type=simple
+ExecStart=%h/.local/bin/mb81-bt-postboot.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Fix BCM4350C0 Bluetooth cold-init on MacBook8,1 (fast serdev rebind)
+After=systemd-udevd.service
+Before=bluetooth.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fix-macbook-bluetooth.sh
+TimeoutStartSec=40
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
