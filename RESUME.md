@@ -7,11 +7,15 @@ persists across reboot and full power-off. Root cause was the dynamic HDA stream
 mismatch (below); fixed by mb81-dmatag.py + the daemon binding 0x0a to the live tag.
 
 ### Bluetooth (separate from this repo; see ~/.claude memory macbook-bluetooth-fix):
-Also fixed this session — the BCM4350C0 late-init broke the GNOME tray toggle AND
-mouse auto-connect. Fix: fast serdev-rebind (`fix-macbook-bluetooth.service`, ~18s vs
-~51s) + a post-login user service (`~/.local/bin/mb81-bt-postboot.sh`,
-`mb81-bt-postboot.service`) that power-cycles BlueZ (shows the tray tile) and
-host-connects paired devices (the mouse). PENDING a reboot test to confirm both are automatic.
+Fixed via fast serdev-rebind (`fix-macbook-bluetooth.service`) + a PERSISTENT user
+daemon v3 (`~/.local/bin/mb81-bt-postboot.sh`, Type=simple). Key discoveries (proven
+by reading gnome-shell 46 source + journal forensics): the top-bar BT icon only shows
+when a device is CONNECTED (icon missing == mouse disconnected, one symptom); v2's
+oneshot armers were killed by systemd cgroup cleanup; bluez native LE auto-reconnect
+is flaky here (unpatched BCM4350C0 firmware emits malformed adv reports the kernel
+drops), while a directly-armed `bluetoothctl connect` completes in hardware instantly.
+v3 keeps a connect armed forever + re-syncs the QS toggle (gsd-rfkill target restart).
+Verified live; reboot test pending.
 
 ---
 ## (earlier) Status: WORKING on kernel 7.0 (automatic via PipeWire) — pending reboot test
